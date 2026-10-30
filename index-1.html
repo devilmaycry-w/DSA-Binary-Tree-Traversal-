@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Binary Tree Traversals: Troubleshooting Decision Tree</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--ink:#1f2937;--mute:#6b7280;--line:#cbd5e1;--q:#dbeafe;--qs:#2563eb;--a:#d1fae5;--as:#059669;--hi:#f59e0b;--cur:#dc2626;--code:#f1f5f9}
+@media (prefers-color-scheme:dark){:root{--bg:#0f172a;--card:#1e293b;--ink:#e5e7eb;--mute:#94a3b8;--line:#475569;--q:#1e3a5f;--qs:#60a5fa;--a:#064e3b;--as:#34d399;--hi:#fbbf24;--cur:#f87171;--code:#0f172a}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Segoe UI",system-ui,-apple-system,Roboto,sans-serif;line-height:1.45}
+.wrap{max-width:1040px;margin:0 auto;padding:16px}
+h1{font-size:22px;margin:0 0 2px}.sub{color:var(--mute);margin:0 0 14px;font-size:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:12px}
+.tabs,.ctl{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+button{font:inherit;font-size:14px;padding:7px 13px;border-radius:7px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
+button:hover{border-color:var(--qs)}button:disabled{opacity:.45;cursor:default}
+.tabs button.on{background:var(--qs);border-color:var(--qs);color:#fff}
+.ctl{margin-top:10px}.ctl label{font-size:13px;color:var(--mute);display:flex;gap:6px;align-items:center}
+svg{width:100%;height:auto;display:block;margin-top:8px}
+.edge{stroke:var(--line);stroke-width:1.6}.edge.on{stroke:var(--hi);stroke-width:3.2}
+.nd rect{stroke-width:1.6;transition:fill .25s,stroke .25s}
+.nd.q rect{fill:var(--q);stroke:var(--qs)}.nd.a rect{fill:var(--a);stroke:var(--as)}
+.nd.done rect{fill:var(--hi);stroke:var(--hi)}
+.nd.stk rect{stroke:var(--qs);stroke-width:3.5}.nd.done.stk rect{stroke:var(--qs)}
+.nd.cur rect{stroke:var(--cur);stroke-width:4}
+.nd text{font-size:10px;text-anchor:middle;fill:var(--ink)}.nd .id{font-weight:700}.nd.done text{fill:#1f2937}
+.bdg{display:none}.nd.done .bdg{display:inline}
+.bdg circle{fill:var(--cur)}.bdg text{fill:#fff!important;font-size:9px;font-weight:700}
+.el{font-size:10px;fill:var(--mute);text-anchor:middle}
+#status{margin-top:8px;padding:8px 10px;border-radius:8px;background:var(--code);font-size:14px;min-height:38px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.card h2{font-size:14px;margin:0 0 8px}
+.chips{display:flex;gap:5px;flex-wrap:wrap;min-height:28px}
+.chip{padding:3px 8px;border-radius:6px;border:1.5px solid var(--qs);background:var(--q);font-size:12.5px}
+.chip.leaf{border-color:var(--as);background:var(--a)}.chip.top{border-color:var(--cur);font-weight:700}
+.chip.none{border-style:dashed;background:transparent;color:var(--mute)}
+.stackv{display:flex;flex-direction:column;gap:4px;align-items:flex-start;min-height:28px}
+pre{margin:0;background:var(--code);border-radius:8px;padding:8px 0;font-size:12.5px;overflow-x:auto}
+pre div{padding:1px 12px;white-space:pre}pre div.hl{background:var(--hi);color:#1f2937;font-weight:700}
+.stat{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--mute);margin-top:8px}.stat b{color:var(--ink)}
+#ask button{margin-right:8px}
+@media (max-width:700px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>Binary tree traversals on a troubleshooting decision tree</h1>
+<p class="sub">Left child = No, right child = Yes. Choose a traversal, then press Play or Step. Red outline = current node, amber = visited (badge = visit order), blue outline = still on the stack.</p>
+
+<div class="card">
+  <div class="tabs" id="tabs"></div>
+  <svg id="tree" viewBox="0 0 756 318" role="img" aria-label="Binary decision tree"></svg>
+  <div id="status"></div>
+  <div class="ctl" id="ctl">
+    <button id="play">Play</button><button id="step">Step</button><button id="reset">Reset</button>
+    <label>Slow <input type="range" id="spd" min="1" max="5" value="3"> Fast</label>
+  </div>
+  <div id="ask"></div>
+  <div class="stat" id="stat"></div>
+</div>
+
+<div class="grid" id="panels">
+  <div class="card"><h2>Output so far (visit order)</h2><div class="chips" id="out"></div></div>
+  <div class="card"><h2 id="stTitle">Call stack (top first)</h2><div id="struct"></div></div>
+  <div class="card"><h2>Pseudocode</h2><pre id="code"></pre></div>
+  <div class="card"><h2>Complexity and best use</h2><div id="cx" style="font-size:13.5px"></div></div>
+</div>
+</div>
+
+<script>
+const N={1:['Powers on?',2,3],2:['Charger in?',4,5],3:['Wi-Fi on?',6,7],4:['Plug in'],5:['Force restart'],6:['Restart router'],7:['Sites load?',8,9],8:['Flush DNS / ISP'],9:['Reinstall app']};
+const FULL={1:'Does the device power on?',2:'Is the charger connected?',3:'Is Wi-Fi connected?',7:'Do websites load?',4:'Connect the charger and retry.',5:'Hold the power button for 10 s; if that fails, visit a service centre.',6:'Restart the router and reconnect.',8:'Flush the DNS cache or contact your ISP.',9:'The fault is app-specific: reinstall the app.'};
+const inord=[4,2,5,1,6,3,8,7,9],depth={};
+(function d(i,k){depth[i]=k;if(N[i][1]){d(N[i][1],k+1);d(N[i][2],k+1)}})(1,0);
+const isQ=i=>N[i].length>1,$=id=>document.getElementById(id),chip=(i,c)=>'<span class="chip'+(isQ(i)?'':' leaf')+(c?' '+c:'')+'">N'+i+'</span>';
+const MODES=['Preorder','Inorder','Postorder','Level-order','Support session'];
+const PS={
+ 'Preorder':['PREORDER(node)','  if node == NULL: return','  visit(node)','  PREORDER(node.left)','  PREORDER(node.right)'],
+ 'Inorder':['INORDER(node)','  if node == NULL: return','  INORDER(node.left)','  visit(node)','  INORDER(node.right)'],
+ 'Postorder':['POSTORDER(node)','  if node == NULL: return','  POSTORDER(node.left)','  POSTORDER(node.right)','  visit(node)'],
+ 'Level-order':['LEVELORDER(root)','  enqueue(Q, root)','  while Q is not empty:','    node = dequeue(Q); visit(node)','    enqueue(node.left, node.right)']};
+const ORD={'Preorder':['visit','L','R'],'Inorder':['L','visit','R'],'Postorder':['L','R','visit']};
+const LN={'Preorder':{visit:2,L:3,R:4},'Inorder':{L:2,visit:3,R:4},'Postorder':{L:2,R:3,visit:4}};
+const CX={
+ 'Preorder':['O(n)','O(h)','Root, Left, Right. Best for displaying, copying and saving the tree: every question appears before the questions it leads to.'],
+ 'Inorder':['O(n)','O(h)','Left, Root, Right. Gives the left-to-right layout (No to Yes) of the flow; sorted order if the tree were a search tree.'],
+ 'Postorder':['O(n)','O(h)','Left, Right, Root. Best for processing and deleting: children are handled before their parent, so a branch can be freed or validated safely.'],
+ 'Level-order':['O(n)','O(w)','Level by level using a queue. Best for exploring by depth and finding the closest fix to the first question.']};
+
+/* ---- tree drawing ---- */
+const SX=i=>42+inord.indexOf(i)*84,SY=i=>34+depth[i]*84,BW=78,HH=21,gs={},es=[];
+(function(){let s='';
+ for(const k in N){const i=+k;if(!N[i][1])continue;
+  for(let j=1;j<=2;j++){const c=N[i][j];
+   s+='<line class="edge" id="e'+i+'_'+c+'" x1="'+SX(i)+'" y1="'+(SY(i)+HH)+'" x2="'+SX(c)+'" y2="'+(SY(c)-HH)+'"/>';
+   s+='<text class="el" x="'+((SX(i)+SX(c))/2+(j==1?-11:11))+'" y="'+((SY(i)+SY(c))/2)+'">'+(j==1?'No':'Yes')+'</text>';es.push([i,c]);}}
+ for(const k in N){const i=+k,x=SX(i),y=SY(i);
+  s+='<g class="nd '+(isQ(i)?'q':'a')+'" id="g'+i+'"><rect x="'+(x-BW/2)+'" y="'+(y-HH)+'" width="'+BW+'" height="'+(HH*2)+'" rx="7"/>'+
+   '<text class="id" x="'+x+'" y="'+(y-3)+'">N'+i+'</text><text x="'+x+'" y="'+(y+10)+'">'+N[i][0]+'</text>'+
+   '<g class="bdg"><circle cx="'+(x+BW/2-3)+'" cy="'+(y-HH)+'" r="9"/><text id="b'+i+'" x="'+(x+BW/2-3)+'" y="'+(y-HH+3)+'"></text></g></g>';}
+ $('tree').innerHTML=s;for(const k in N)gs[k]=$('g'+k);})();
+
+/* ---- build step lists ---- */
+function build(m){const ev=[];
+ if(m==='Level-order'){const q=[1];ev.push({t:'init',q:[1],line:1,msg:'Enqueue the root N1'});
+  while(q.length){const n=q.shift();ev.push({t:'visit',n,q:[...q],line:3,msg:'Dequeue N'+n+' and visit it'});
+   const kids=N[n].slice(1);kids.forEach(c=>q.push(c));
+   if(kids.length)ev.push({t:'enq',n,q:[...q],line:4,msg:'Enqueue the children of N'+n+': '+kids.map(k=>'N'+k).join(', ')});}
+  return ev;}
+ const st=[];
+ (function rec(n){st.push(n);ev.push({t:'call',n,st:[...st],line:0,msg:'Call '+m.toUpperCase()+' on N'+n});
+  ORD[m].forEach(a=>{
+   if(a==='visit'){ev.push({t:'visit',n,st:[...st],line:LN[m].visit,msg:'Visit N'+n+' ('+N[n][0]+')'});}
+   else{const c=N[n][a==='L'?1:2];if(c){ev.push({t:'go',n,st:[...st],line:LN[m][a],msg:'Go '+(a==='L'?'left (No)':'right (Yes)')+' from N'+n+' to N'+c});rec(c);}}});
+  st.pop();ev.push({t:'ret',n,st:[...st],line:0,msg:'N'+n+' finished, return to its parent'});})(1);
+ return ev;}
+
+/* ---- state and rendering ---- */
+let mode='Preorder',ev=build(mode),i=-1,timer=null,ses=[1];
+function setMode(m){stop();mode=m;i=-1;ses=[1];ev=m==='Support session'?[]:build(m);
+ [...$('tabs').children].forEach(b=>b.classList.toggle('on',b.dataset.m===m));
+ const s=m==='Support session';$('ctl').style.display=s?'none':'flex';
+ $('panels').style.display=s?'none':'grid';$('ask').style.display=s?'block':'none';
+ $('stTitle').textContent=m==='Level-order'?'Queue (front on the left)':'Call stack (top first)';render();}
+function render(){
+ if(mode==='Support session')return renderSession();
+ const e=i>=0?ev[i]:null,vis=[],reached=new Set([1]);let mx=0;
+ for(let k=0;k<=i;k++){const x=ev[k];if(x.t==='visit')vis.push(x.n);if(x.t==='call')reached.add(x.n);
+  if(x.q){x.q.forEach(c=>reached.add(c));mx=Math.max(mx,x.q.length);}if(x.st)mx=Math.max(mx,x.st.length);}
+ for(const k in N){const g=gs[k],n=+k,p=vis.indexOf(n);
+  g.classList.toggle('done',p>=0);g.classList.toggle('cur',!!e&&e.n===n);
+  g.classList.toggle('stk',!!e&&!!e.st&&e.st.includes(n)&&e.t!=='visit'||!!e&&!!e.st&&e.st.includes(n));
+  $('b'+k).textContent=p>=0?p+1:'';}
+ es.forEach(p=>$('e'+p[0]+'_'+p[1]).classList.toggle('on',reached.has(p[0])&&reached.has(p[1])&&i>=0));
+ $('status').textContent=e?e.msg:'Ready. Press Play or Step to start the '+mode+' traversal.';
+ $('out').innerHTML=vis.length?vis.map(n=>chip(n)).join('<span style="color:var(--mute)">›</span>'):'<span class="chip none">nothing visited yet</span>';
+ let sv='';
+ if(e&&e.q)sv='<div class="chips">'+(e.q.length?e.q.map((n,k)=>chip(n,k==0?'top':'')).join(''):'<span class="chip none">empty</span>')+'</div>';
+ else if(e&&e.st)sv='<div class="stackv">'+(e.st.length?[...e.st].reverse().map((n,k)=>chip(n,k==0?'top':'')).join(''):'<span class="chip none">empty</span>')+'</div>';
+ else sv='<span class="chip none">empty</span>';
+ $('struct').innerHTML=sv;
+ $('code').innerHTML=PS[mode].map((l,k)=>'<div'+(e&&e.line===k?' class="hl"':'')+'>'+l+'</div>').join('');
+ const c=CX[mode];$('cx').innerHTML='<p style="margin:0 0 6px"><b>Time:</b> '+c[0]+' (each node visited once). <b>Extra space:</b> '+c[1]+(mode==='Level-order'?' (w = widest level)':' (h = tree height)')+'.</p><p style="margin:0">'+c[2]+'</p>';
+ $('stat').innerHTML='<span>Step <b>'+(i+1)+'</b> of <b>'+ev.length+'</b></span><span>Nodes visited <b>'+vis.length+'</b> of 9</span><span>Largest '+(mode==='Level-order'?'queue':'stack')+' so far <b>'+mx+'</b></span>';
+ $('step').disabled=i>=ev.length-1;if(i>=ev.length-1&&timer){stop();}
+ $('play').textContent=timer?'Pause':(i>=ev.length-1?'Replay':'Play');}
+function renderSession(){const cur=ses[ses.length-1];
+ for(const k in N){const n=+k;gs[k].classList.remove('done');gs[k].classList.toggle('cur',n===cur);gs[k].classList.toggle('stk',ses.includes(n)&&n!==cur);$('b'+k).textContent='';}
+ es.forEach(p=>$('e'+p[0]+'_'+p[1]).classList.toggle('on',ses.includes(p[0])&&ses.includes(p[1])));
+ const leaf=!isQ(cur);
+ $('status').textContent=leaf?'Fix found at N'+cur+': '+FULL[cur]:'N'+cur+': '+FULL[cur];
+ $('ask').innerHTML=leaf?'<button id="rs">Start a new session</button>':'<button id="no">No (go left)</button><button id="yes">Yes (go right)</button>';
+ if(leaf)$('rs').onclick=()=>{ses=[1];render();};else{$('no').onclick=()=>{ses.push(N[cur][1]);render();};$('yes').onclick=()=>{ses.push(N[cur][2]);render();};}
+ $('stat').innerHTML='<span>Questions answered <b>'+(ses.length-1)+'</b></span><span>Nodes touched <b>'+ses.length+'</b> of 9 (a session walks one root-to-leaf path: O(h))</span>';}
+function stop(){if(timer){clearInterval(timer);timer=null;}}
+function tick(){if(i<ev.length-1){i++;render();}else stop();}
+$('tabs').innerHTML=MODES.map(m=>'<button data-m="'+m+'">'+m+'</button>').join('');
+$('tabs').onclick=e=>{if(e.target.dataset.m)setMode(e.target.dataset.m);};
+$('step').onclick=()=>{stop();tick();render();};
+$('reset').onclick=()=>{stop();i=-1;render();};
+$('play').onclick=()=>{if(timer){stop();render();return;}if(i>=ev.length-1)i=-1;timer=setInterval(tick,1700-$('spd').value*300);tick();};
+$('spd').oninput=()=>{if(timer){stop();timer=setInterval(tick,1700-$('spd').value*300);render();}};
+setMode('Preorder');
+</script>
+</body>
+</html>
